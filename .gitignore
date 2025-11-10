@@ -1,0 +1,27 @@
+# Ignore all .env files
+.env
+.env.local
+.env.*.local
+
+# Ignore sensitive folders
+node_modules
+uploads
+
+# Ignore build artifacts
+dist/
+build/
+out/
+
+# Ignore IDE settings
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Ignore logs
+logs/
+*.log
+
+# Ignore OS metadata
+.DS_Store
+Thumbs.db
