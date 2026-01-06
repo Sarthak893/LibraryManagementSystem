@@ -23,23 +23,27 @@ const StudentDashboard = () => {
   const [loading, setLoading] = useState(true);
 
   // Fetch real rentals for current student
-  const fetchRentedBooks = async () => {
-    try {
-      const res = await rentalsAPI.getMe();
-      // ✅ FIXED: Filter out returned books
-      const activeRentals = res.data.filter(r => 
-        r.book && 
-        r.book.title && 
-        !r.returned
-      );
-      setRentedBooks(activeRentals);
-    } catch (err) {
-      console.error('Failed to fetch rentals:', err);
-      setRentedBooks([]);
-    } finally {
-      setLoading(false);
-    }
-  };
+const fetchRentedBooks = async () => {
+  try {
+    const res = await rentalsAPI.getMe();
+    
+    // ✅ Robust filter
+    const activeRentals = res.data.filter(r => 
+      r.book && 
+      typeof r.book === 'object' && 
+      r.book.title && 
+      r.book.isbn &&
+      (r.returned === false || r.returned === undefined)
+    );
+    
+    setRentedBooks(activeRentals);
+  } catch (err) {
+    console.error('Failed to fetch rentals:', err);
+    setRentedBooks([]);
+  } finally {
+    setLoading(false);
+  }
+};
 
   useEffect(() => {
     fetchRentedBooks();

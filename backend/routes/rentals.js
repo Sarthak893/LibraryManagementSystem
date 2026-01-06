@@ -36,15 +36,12 @@ router.post('/rent', auth, async (req, res) => {
       await book.save();
     }
 
-    // 2. Force availability (emergency fix for demo)
-    if (!book.available) {
-      book.available = true;
-      await book.save();
-    }
-
-    // 3. Rent it
-    book.available = false;
-    await book.save();
+    // ✅ FIX: Atomic update (prevents duplicate saves)
+    book = await Book.findByIdAndUpdate(
+      book._id,
+      { available: false },
+      { new: true }
+    );
 
     const rental = new Rental({
       student: req.user.id,
@@ -53,10 +50,10 @@ router.post('/rent', auth, async (req, res) => {
     });
     await rental.save();
 
-    // ✅ CRITICAL: Return returnCode (was missing in your version!)
+    // ✅ CRITICAL: Return returnCode
     res.json({
       msg: '✅ Rented successfully',
-      returnCode: rental.returnCode, // ← THIS WAS MISSING!
+      returnCode: rental.returnCode,
       book: { 
         title: book.title, 
         isbn: book.isbn 
