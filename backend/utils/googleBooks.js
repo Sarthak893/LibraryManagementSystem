@@ -20,7 +20,13 @@ const fetchBookByISBN = async (isbn) => {
     return null;
   } catch (err) {
     console.error('Google Books API error:', err.message);
-    return null;
+    return {
+      isbn: isbn,
+      title: 'Book Title Unavailable',
+      authors: ['Unknown Author'],
+      description: 'Description temporarily unavailable.',
+      imageUrl: '',
+    };
   }
 };
 

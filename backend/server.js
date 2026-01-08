@@ -32,5 +32,26 @@ if (process.env.NODE_ENV === 'production') {
   );
 }
 
-const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+// Handle unhandled promise rejections
+process.on('unhandledRejection', (err, promise) => {
+  console.error('Unhandled Rejection:', err.message);
+  process.exit(1);
+});
+
+// Handle uncaught exceptions
+process.on('uncaughtException', (err) => {
+  console.error('Uncaught Exception:', err.message);
+  process.exit(1);
+});
+
+const PORT = process.env.PORT || 8000;
+
+
+try {
+  app.listen(PORT, () => {
+    console.log(`✅ Server running on port ${PORT}`);
+  });
+} catch (err) {
+  console.error('❌ Server failed to start:', err.message);
+  process.exit(1);
+}
