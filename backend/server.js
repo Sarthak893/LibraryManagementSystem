@@ -14,7 +14,13 @@ const app = express();
 
 // Middleware
 app.use(express.json({ extended: false }));
-app.use(cors());
+app.use(cors({
+  origin: [
+    "http://localhost:5173",
+    "https://library-management-system-9to9.vercel.app"
+  ],
+  credentials: true
+}))
 
 // Create uploads folder
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
