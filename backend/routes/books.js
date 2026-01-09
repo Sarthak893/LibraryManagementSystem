@@ -1,5 +1,6 @@
 // backend/routes/books.js
 const express = require('express');
+const axios = require('axios'); // ✅ MISSING LINE
 const Book = require('../models/Book');
 const { fetchBookByISBN } = require('../utils/googleBooks');
 const { auth, librarianOnly } = require('../middleware/auth');
