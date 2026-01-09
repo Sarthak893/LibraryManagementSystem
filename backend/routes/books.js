@@ -6,11 +6,6 @@ const { auth, librarianOnly } = require('../middleware/auth');
 
 const router = express.Router();
 
-// backend/routes/books.js
-const axios = require('axios');
-
-// ... existing code ...
-
 // @route   GET /api/books/popular
 // @desc    Get 12 popular books from Google Books (multi-query + fallback)
 router.get('/popular', async (req, res) => {
@@ -147,41 +142,6 @@ router.delete('/:id', [auth, librarianOnly], async (req, res) => {
 router.get('/', async (req, res) => {
   try {
     const books = await Book.find();
-    res.json(books);
-  } catch (err) {
-    res.status(500).json({ msg: 'Server error' });
-  }
-});
-// @route   GET /api/books/popular
-// @desc    Get popular books from Google Books (cached or fresh)
-router.get('/popular', async (req, res) => {
-  try {
-    // Optional: Cache in DB for 1 hour to avoid API limits
-    const cacheKey = 'popular_books_cache';
-    const cache = await Book.findOne({ isbn: cacheKey });
-    
-    const now = new Date();
-    if (cache && cache.updatedAt > new Date(now - 60 * 60 * 1000)) {
-      // Return cached
-      return res.json(JSON.parse(cache.description));
-    }
-
-    // Fetch fresh
-    const books = await fetchPopularBooks();
-
-    // Cache in DB (abusing Book model — or create Cache model)
-    if (cache) {
-      cache.description = JSON.stringify(books);
-      await cache.save();
-    } else {
-      await Book.create({
-        isbn: cacheKey,
-        title: 'Popular Books Cache',
-        description: JSON.stringify(books),
-        available: false
-      });
-    }
-
     res.json(books);
   } catch (err) {
     res.status(500).json({ msg: 'Server error' });
