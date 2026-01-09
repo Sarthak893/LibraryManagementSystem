@@ -25,12 +25,6 @@ app.use('/api/books', require('./routes/books'));
 app.use('/api/rentals', require('./routes/rentals'));
 
 // Serve static assets in production (later)
-if (process.env.NODE_ENV === 'production') {
-  app.use(express.static(path.join(__dirname, '../frontend/build')));
-  app.get('*', (req, res) =>
-    res.sendFile(path.resolve(__dirname, '../frontend/build', 'index.html'))
-  );
-}
 
 // Handle unhandled promise rejections
 process.on('unhandledRejection', (err, promise) => {
@@ -54,4 +48,12 @@ try {
 } catch (err) {
   console.error('❌ Server failed to start:', err.message);
   process.exit(1);
+}
+
+
+if (process.env.NODE_ENV === 'production') {
+  app.use(express.static(path.join(__dirname, '../frontend/build')));
+  app.get('/*', (req, res) =>
+    res.sendFile(path.resolve(__dirname, '../frontend/build', 'index.html'))
+  );
 }
