@@ -3,6 +3,12 @@ import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
+// ✅ Email validation helper
+const isValidEmail = (email) => {
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  return emailRegex.test(email);
+};
+
 const Login = () => {
   const [formData, setFormData] = useState({
     email: '',
@@ -20,23 +26,44 @@ const Login = () => {
     e.preventDefault();
     setError('');
 
+    const { email, password } = formData;
+
+    // ✅ Frontend validation
+    if (!isValidEmail(email)) {
+      setError('Please enter a valid email address.');
+      return;
+    }
+
+    if (password.length < 6) {
+      setError('Password must be at least 6 characters long.');
+      return;
+    }
+
     try {
-      await login(formData.email, formData.password);
+      await login(email, password);
       navigate('/'); // Redirect to home after login
     } catch (err) {
-      setError(err.response?.data?.msg || 'Login failed. Please check your credentials.');
+      setError(
+        err.response?.data?.msg ||
+        'Login failed. Please check your credentials.'
+      );
     }
   };
 
   return (
     <div className="max-w-md mx-auto mt-10 p-6 border rounded shadow bg-white">
-      <h2 className="text-2xl font-bold text-center mb-6">Login to Library System</h2>
+      <h2 className="text-2xl font-bold text-center mb-6">
+        Login to Library System
+      </h2>
 
       {error && <p className="text-red-500 text-center mb-4">{error}</p>}
 
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
-          <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
+          <label
+            htmlFor="email"
+            className="block text-sm font-medium text-gray-700 mb-1"
+          >
             Email
           </label>
           <input
@@ -52,7 +79,10 @@ const Login = () => {
         </div>
 
         <div>
-          <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">
+          <label
+            htmlFor="password"
+            className="block text-sm font-medium text-gray-700 mb-1"
+          >
             Password
           </label>
           <input
