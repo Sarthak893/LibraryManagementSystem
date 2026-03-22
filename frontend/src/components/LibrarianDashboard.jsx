@@ -91,19 +91,40 @@ const LibrarianDashboard = () => {
   };
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold">Librarian Dashboard</h1>
-        <button
-          onClick={() => {
-            logout();
-            navigate('/');
-          }}
-          className="bg-red-600 text-white px-4 py-2 rounded"
-        >
-          Logout
-        </button>
-      </div>
+    <div className="container mx-auto px-4 py-8 max-w-4xl">
+
+  <div className="flex justify-between items-center mb-6">
+
+    {/* LEFT SIDE */}
+    <h1 className="text-2xl font-bold text-gray-800">
+      Librarian Dashboard
+    </h1>
+
+    {/* RIGHT SIDE */}
+    <div className="flex gap-3">
+
+      <button
+        onClick={() => {
+          navigate('/');
+        }}
+        className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg font-medium transition"
+      >
+        Home
+      </button>
+
+      <button
+        onClick={() => {
+          logout();
+          navigate('/login');
+        }}
+        className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg font-medium transition"
+      >
+        Logout
+      </button>
+
+    </div>
+
+  </div>
 
       {/* Search Section */}
       <div className="bg-white p-4 rounded shadow mb-6">

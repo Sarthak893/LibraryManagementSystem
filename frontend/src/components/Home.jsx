@@ -67,7 +67,7 @@ const Home = () => {
                   logout();
                   navigate('/');
                 }}
-                className="text-gray-600 hover:text-indigo-600 font-medium"
+                className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg font-medium transition"
               >
                 Logout
               </button>
