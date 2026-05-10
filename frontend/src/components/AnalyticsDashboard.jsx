@@ -20,7 +20,7 @@ const AnalyticsDashboard = () => {
     try {
 
       const res = await axios.get(
-        "http://localhost:5000/api/analytics/admin-stats"
+        "http://localhost:8000/api/analytics/admin-stats"
       );
 
       setStats(res.data);
