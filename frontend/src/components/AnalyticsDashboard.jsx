@@ -20,7 +20,7 @@ const AnalyticsDashboard = () => {
     try {
 
       const res = await axios.get(
-        "http://localhost:8000/api/analytics/admin-stats"
+        `${import.meta.env.VITE_API_URL}/api/analytics/admin-stats`
       );
 
       setStats(res.data);
