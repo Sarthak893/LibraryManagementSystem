@@ -31,6 +31,8 @@ const Home = () => {
       navigate('/login', { replace: true });
     }
   }, [user, loading, navigate]);
+  console.log(user);
+
 
   // If still loading, show nothing (prevents flash)
   if (loading || !user) {
@@ -54,7 +56,7 @@ const Home = () => {
           {user ? (
             <div className="flex items-center space-x-4">
               <span className="hidden md:inline text-gray-700">
-                Hello, <span className="font-medium">{user.name}</span>
+                Hello, <span className="font-medium">{user?.name || "User"}</span>
               </span>
               <Link
                 to={user.role === 'librarian' ? '/librarian' : '/student'}

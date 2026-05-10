@@ -3,6 +3,7 @@ const express = require('express');
 const connectDB = require('./config/db');
 const cors = require('cors');
 const path = require('path');
+const analyticsRoutes = require("./routes/analytics");
 
 // Load env
 require('dotenv').config();
@@ -29,6 +30,7 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/books', require('./routes/books'));
 app.use('/api/rentals', require('./routes/rentals'));
+app.use('/api/analytics', require('./routes/analytics'));
 
 // Serve static assets in production (later)
 
