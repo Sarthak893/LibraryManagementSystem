@@ -83,11 +83,16 @@ router.get("/popular", async (req, res) => {
 
     res.json(books);
   } catch (err) {
-    console.error(
-      "Google Books Error:",
-      err.response?.status,
-      err.response?.data || err.message
-    );
+  console.error("STATUS:", err.response?.status);
+  console.error("DATA:", err.response?.data);
+  console.error("MESSAGE:", err.message);
+
+  res.status(500).json({
+    status: err.response?.status,
+    data: err.response?.data,
+    message: err.message
+  });
+}
 
     // If Google fails, return cached books
     if (popularBooksCache.length > 0) {
