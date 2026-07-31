@@ -1,5 +1,3 @@
-// backend/routes/books.js
-
 const express = require("express");
 const axios = require("axios");
 const Book = require("../models/Book");
@@ -8,29 +6,26 @@ const { auth, librarianOnly } = require("../middleware/auth");
 
 const router = express.Router();
 
-// ===============================
-// Cache popular books (1 hour)
-// ===============================
 let popularBooksCache = [];
 let lastFetchTime = 0;
 const CACHE_DURATION = 60 * 60 * 1000; // 1 hour
 
-// ==========================================
-// GET /api/books/popular
-// Popular books from Google Books
-// ==========================================
 router.get("/popular", async (req, res) => {
   try {
-    // Serve cached books if available
     if (
-      popularBooksCache.length > 0 &&
+      popularBooksCache.length &&
       Date.now() - lastFetchTime < CACHE_DURATION
     ) {
       console.log("Serving books from cache");
       return res.json(popularBooksCache);
     }
 
-    console.log("Fetching books from Google Books...");
+    console.log(
+      "Loaded key:",
+      process.env.GOOGLE_BOOKS_API_KEY
+        ? process.env.GOOGLE_BOOKS_API_KEY.substring(0, 10)
+        : "NO KEY"
+    );
 
     const response = await axios.get(
       "https://www.googleapis.com/books/v1/volumes",
@@ -39,10 +34,7 @@ router.get("/popular", async (req, res) => {
           q: "subject:fiction",
           maxResults: 20,
           orderBy: "relevance",
-          key:process.env.GOOGLE_BOOKS_API_KEY
-
-          // If you later create a Google API key:
-          // key: process.env.GOOGLE_BOOKS_API_KEY
+          key: process.env.GOOGLE_BOOKS_API_KEY,
         },
       }
     );
@@ -56,7 +48,7 @@ router.get("/popular", async (req, res) => {
 
           isbn:
             info.industryIdentifiers?.find(
-              (x) => x.type === "ISBN_13"
+              (id) => id.type === "ISBN_13"
             )?.identifier ||
             info.industryIdentifiers?.[0]?.identifier ||
             item.id,
@@ -79,37 +71,28 @@ router.get("/popular", async (req, res) => {
     popularBooksCache = books;
     lastFetchTime = Date.now();
 
-    console.log(`Fetched ${books.length} books`);
+    console.log("Fetched", books.length);
 
-    res.json(books);
+    return res.json(books);
   } catch (err) {
-  console.error("STATUS:", err.response?.status);
-  console.error("DATA:", err.response?.data);
-  console.error("MESSAGE:", err.message);
+    console.error("STATUS:", err.response?.status);
+    console.error("DATA:", err.response?.data);
+    console.error("MESSAGE:", err.message);
 
-  res.status(500).json({
-    status: err.response?.status,
-    data: err.response?.data,
-    message: err.message
-  });
-}
-
-    // If Google fails, return cached books
-    if (popularBooksCache.length > 0) {
+    if (popularBooksCache.length) {
       console.log("Returning cached books");
       return res.json(popularBooksCache);
     }
 
-    res.status(500).json({
-      msg: "Unable to fetch books from Google Books",
+    return res.status(500).json({
+      status: err.response?.status,
+      data: err.response?.data,
+      message: err.message,
     });
   }
-);
+});
 
-// ==========================================
-// GET /api/books/search/:isbn
-// Search by ISBN
-// ==========================================
+// Search ISBN
 router.get("/search/:isbn", async (req, res) => {
   try {
     const bookData = await fetchBookByISBN(req.params.isbn);
@@ -122,28 +105,17 @@ router.get("/search/:isbn", async (req, res) => {
 
     res.json(bookData);
   } catch (err) {
-    console.error(err);
     res.status(500).json({
       msg: "Server error",
     });
   }
 });
 
-// ==========================================
-// POST /api/books
-// Add book
-// Librarian only
-// ==========================================
+// Add Book
 router.post("/", [auth, librarianOnly], async (req, res) => {
-  const {
-    isbn,
-    title,
-    authors,
-    description,
-    imageUrl,
-  } = req.body;
-
   try {
+    const { isbn, title, authors, description, imageUrl } = req.body;
+
     let book = await Book.findOne({ isbn });
 
     if (book) {
@@ -152,7 +124,7 @@ router.post("/", [auth, librarianOnly], async (req, res) => {
       });
     }
 
-    book = new Book({
+    book = await Book.create({
       isbn,
       title,
       authors,
@@ -162,29 +134,21 @@ router.post("/", [auth, librarianOnly], async (req, res) => {
       available: true,
     });
 
-    await book.save();
-
     res.status(201).json(book);
-  } catch (err) {
-    console.error(err);
+  } catch {
     res.status(500).json({
       msg: "Server error",
     });
   }
 });
 
-// ==========================================
-// PUT /api/books/:id
-// Update book
-// ==========================================
+// Update
 router.put("/:id", [auth, librarianOnly], async (req, res) => {
   try {
     const book = await Book.findByIdAndUpdate(
       req.params.id,
       req.body,
-      {
-        new: true,
-      }
+      { new: true }
     );
 
     if (!book) {
@@ -194,18 +158,14 @@ router.put("/:id", [auth, librarianOnly], async (req, res) => {
     }
 
     res.json(book);
-  } catch (err) {
-    console.error(err);
+  } catch {
     res.status(500).json({
       msg: "Server error",
     });
   }
 });
 
-// ==========================================
-// DELETE /api/books/:id
-// Delete book
-// ==========================================
+// Delete
 router.delete("/:id", [auth, librarianOnly], async (req, res) => {
   try {
     const book = await Book.findByIdAndDelete(req.params.id);
@@ -217,28 +177,22 @@ router.delete("/:id", [auth, librarianOnly], async (req, res) => {
     }
 
     res.json({
-      msg: "Book removed successfully",
+      msg: "Book removed",
     });
-  } catch (err) {
-    console.error(err);
+  } catch {
     res.status(500).json({
       msg: "Server error",
     });
   }
 });
 
-// ==========================================
-// GET /api/books
-// Get all library books
-// ==========================================
+// Local Library
 router.get("/", async (req, res) => {
   try {
     const books = await Book.find();
 
     res.json(books);
-  } catch (err) {
-    console.error(err);
-
+  } catch {
     res.status(500).json({
       msg: "Server error",
     });
