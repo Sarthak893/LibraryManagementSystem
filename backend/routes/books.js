@@ -1,101 +1,151 @@
 // backend/routes/books.js
-const express = require('express');
-const axios = require('axios'); // ✅ MISSING LINE
-const Book = require('../models/Book');
-const { fetchBookByISBN } = require('../utils/googleBooks');
-const { auth, librarianOnly } = require('../middleware/auth');
+
+const express = require("express");
+const axios = require("axios");
+const Book = require("../models/Book");
+const { fetchBookByISBN } = require("../utils/googleBooks");
+const { auth, librarianOnly } = require("../middleware/auth");
 
 const router = express.Router();
 
-// @route   GET /api/books/popular
-// @desc    Get 12 popular books from Google Books (multi-query + fallback)
-router.get('/popular', async (req, res) => {
+// ===============================
+// Cache popular books (1 hour)
+// ===============================
+let popularBooksCache = [];
+let lastFetchTime = 0;
+const CACHE_DURATION = 60 * 60 * 1000; // 1 hour
+
+// ==========================================
+// GET /api/books/popular
+// Popular books from Google Books
+// ==========================================
+router.get("/popular", async (req, res) => {
   try {
-    const queries = [
-      'subject:fiction',
-      'subject:computers',
-      'subject:biography',
-      'subject:history',
-      'newest',
-      'inauthor:"Stephen King"',
-      'intitle:"The"'
-    ];
-
-    let allBooks = [];
-
-    for (const q of queries) {
-      try {
-        const response = await axios.get('https://www.googleapis.com/books/v1/volumes', {
-          params: {
-            q: q,
-            maxResults: 5,
-            orderBy: 'relevance'
-          }
-        });
-
-        if (response.data.items) {
-          allBooks = allBooks.concat(
-            response.data.items.map(item => {
-              const info = item.volumeInfo;
-              return {
-                id: item.id,
-                isbn: info.industryIdentifiers?.find(id => id.type === 'ISBN_13')?.identifier ||
-                      info.industryIdentifiers?.[0]?.identifier || item.id,
-                title: info.title || 'Unknown Title',
-                authors: info.authors || ['Unknown Author'],
-                description: info.description 
-                  ? info.description.replace(/<[^>]*>/g, '').substring(0, 200) + '...'
-                  : 'No description available.',
-                imageUrl: info.imageLinks?.thumbnail?.replace('http://', 'https://') || '',
-                publishedDate: info.publishedDate || ''
-              };
-            })
-          );
-        }
-      } catch (err) {
-        console.warn(`Failed to fetch for query: ${q}`, err.message);
-      }
+    // Serve cached books if available
+    if (
+      popularBooksCache.length > 0 &&
+      Date.now() - lastFetchTime < CACHE_DURATION
+    ) {
+      console.log("Serving books from cache");
+      return res.json(popularBooksCache);
     }
 
-    // Deduplicate by ISBN or ID
-    const seen = new Set();
-    const uniqueBooks = allBooks.filter(book => {
-      const key = book.isbn || book.id;
-      if (seen.has(key)) return false;
-      seen.add(key);
-      return true;
-    });
+    console.log("Fetching books from Google Books...");
 
-    // Return top 12
-    res.json(uniqueBooks.slice(0, 12));
+    const response = await axios.get(
+      "https://www.googleapis.com/books/v1/volumes",
+      {
+        params: {
+          q: "subject:fiction",
+          maxResults: 20,
+          orderBy: "relevance",
+          key:process.env.GOOGLE_BOOKS_API_KEY
 
+          // If you later create a Google API key:
+          // key: process.env.GOOGLE_BOOKS_API_KEY
+        },
+      }
+    );
+
+    const books =
+      response.data.items?.map((item) => {
+        const info = item.volumeInfo;
+
+        return {
+          id: item.id,
+
+          isbn:
+            info.industryIdentifiers?.find(
+              (x) => x.type === "ISBN_13"
+            )?.identifier ||
+            info.industryIdentifiers?.[0]?.identifier ||
+            item.id,
+
+          title: info.title || "Unknown Title",
+
+          authors: info.authors || ["Unknown Author"],
+
+          description: info.description
+            ? info.description.replace(/<[^>]*>/g, "").substring(0, 200) + "..."
+            : "No description available.",
+
+          imageUrl:
+            info.imageLinks?.thumbnail?.replace("http://", "https://") || "",
+
+          publishedDate: info.publishedDate || "",
+        };
+      }) || [];
+
+    popularBooksCache = books;
+    lastFetchTime = Date.now();
+
+    console.log(`Fetched ${books.length} books`);
+
+    res.json(books);
   } catch (err) {
-    console.error('Error fetching popular books:', err.message);
-    res.status(500).json({ msg: 'Server error' });
+    console.error(
+      "Google Books Error:",
+      err.response?.status,
+      err.response?.data || err.message
+    );
+
+    // If Google fails, return cached books
+    if (popularBooksCache.length > 0) {
+      console.log("Returning cached books");
+      return res.json(popularBooksCache);
+    }
+
+    res.status(500).json({
+      msg: "Unable to fetch books from Google Books",
+    });
   }
 });
 
-// @route   GET /api/books/search/:isbn
-// @desc    Search book by ISBN (from Google Books)
-router.get('/search/:isbn', async (req, res) => {
+// ==========================================
+// GET /api/books/search/:isbn
+// Search by ISBN
+// ==========================================
+router.get("/search/:isbn", async (req, res) => {
   try {
     const bookData = await fetchBookByISBN(req.params.isbn);
-    if (!bookData) return res.status(404).json({ msg: 'Book not found' });
+
+    if (!bookData) {
+      return res.status(404).json({
+        msg: "Book not found",
+      });
+    }
+
     res.json(bookData);
   } catch (err) {
-    res.status(500).json({ msg: 'Server error' });
+    console.error(err);
+    res.status(500).json({
+      msg: "Server error",
+    });
   }
 });
 
-// @route   POST /api/books
-// @desc    Librarian adds a book to local library
-// @access  Librarian only
-router.post('/', [auth, librarianOnly], async (req, res) => {
-  const { isbn, title, authors, description, imageUrl } = req.body;
+// ==========================================
+// POST /api/books
+// Add book
+// Librarian only
+// ==========================================
+router.post("/", [auth, librarianOnly], async (req, res) => {
+  const {
+    isbn,
+    title,
+    authors,
+    description,
+    imageUrl,
+  } = req.body;
 
   try {
     let book = await Book.findOne({ isbn });
-    if (book) return res.status(400).json({ msg: 'Book already in library' });
+
+    if (book) {
+      return res.status(400).json({
+        msg: "Book already exists",
+      });
+    }
 
     book = new Book({
       isbn,
@@ -104,48 +154,89 @@ router.post('/', [auth, librarianOnly], async (req, res) => {
       description,
       imageUrl,
       addedBy: req.user.id,
-      available: true
+      available: true,
     });
 
     await book.save();
+
     res.status(201).json(book);
   } catch (err) {
-    res.status(500).json({ msg: 'Server error' });
+    console.error(err);
+    res.status(500).json({
+      msg: "Server error",
+    });
   }
 });
 
-// @route   PUT /api/books/:id
-// @desc    Edit book (librarian)
-router.put('/:id', [auth, librarianOnly], async (req, res) => {
+// ==========================================
+// PUT /api/books/:id
+// Update book
+// ==========================================
+router.put("/:id", [auth, librarianOnly], async (req, res) => {
   try {
-    const book = await Book.findByIdAndUpdate(req.params.id, req.body, { new: true });
-    if (!book) return res.status(404).json({ msg: 'Book not found' });
+    const book = await Book.findByIdAndUpdate(
+      req.params.id,
+      req.body,
+      {
+        new: true,
+      }
+    );
+
+    if (!book) {
+      return res.status(404).json({
+        msg: "Book not found",
+      });
+    }
+
     res.json(book);
   } catch (err) {
-    res.status(500).json({ msg: 'Server error' });
+    console.error(err);
+    res.status(500).json({
+      msg: "Server error",
+    });
   }
 });
 
-// @route   DELETE /api/books/:id
-// @desc    Delete book (librarian)
-router.delete('/:id', [auth, librarianOnly], async (req, res) => {
+// ==========================================
+// DELETE /api/books/:id
+// Delete book
+// ==========================================
+router.delete("/:id", [auth, librarianOnly], async (req, res) => {
   try {
     const book = await Book.findByIdAndDelete(req.params.id);
-    if (!book) return res.status(404).json({ msg: 'Book not found' });
-    res.json({ msg: 'Book removed' });
+
+    if (!book) {
+      return res.status(404).json({
+        msg: "Book not found",
+      });
+    }
+
+    res.json({
+      msg: "Book removed successfully",
+    });
   } catch (err) {
-    res.status(500).json({ msg: 'Server error' });
+    console.error(err);
+    res.status(500).json({
+      msg: "Server error",
+    });
   }
 });
 
-// @route   GET /api/books
-// @desc    Get all books in local library
-router.get('/', async (req, res) => {
+// ==========================================
+// GET /api/books
+// Get all library books
+// ==========================================
+router.get("/", async (req, res) => {
   try {
     const books = await Book.find();
+
     res.json(books);
   } catch (err) {
-    res.status(500).json({ msg: 'Server error' });
+    console.error(err);
+
+    res.status(500).json({
+      msg: "Server error",
+    });
   }
 });
 

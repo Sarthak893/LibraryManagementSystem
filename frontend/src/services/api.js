@@ -5,6 +5,8 @@ const API = axios.create({
   baseURL: `${import.meta.env.VITE_API_URL}/api`,
 });
 
+console.log(import.meta.env.VITE_API_URL);
+
 API.interceptors.request.use((req) => {
   // ✅ Check BOTH — in case token exists in either
   const token = sessionStorage.getItem('token') || localStorage.getItem('token');
