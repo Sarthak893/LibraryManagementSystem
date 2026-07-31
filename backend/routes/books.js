@@ -104,7 +104,7 @@ router.get("/popular", async (req, res) => {
       msg: "Unable to fetch books from Google Books",
     });
   }
-});
+);
 
 // ==========================================
 // GET /api/books/search/:isbn
